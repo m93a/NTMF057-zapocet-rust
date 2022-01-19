@@ -15,9 +15,9 @@ fn main() {
 
     println!("Start: {}, End: {}, Step: {}", ssin.start, ssin.end, ssin.step());
 
-    for (x, y) in ssin {
+    for (x, y) in &ssin {
         println!("Value: x = {:.2}, y = {:.4}", x, y);
     }
 
-    println!("Hello, world!");
+    println!("Hello, world! {}", ssin.data[0]);
 }

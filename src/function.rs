@@ -10,7 +10,10 @@ pub struct SampledFunctionRegular1D<T: Num, const COUNT: usize> {
     step: T
 }
 
-impl<T: Num + FromPrimitive + Copy, const COUNT: usize> SampledFunctionRegular1D<T, COUNT> {
+
+impl<T, const COUNT: usize> SampledFunctionRegular1D<T, COUNT>
+where T: Num + FromPrimitive + Copy
+{
     pub fn new(start: T, end: T, data: [T; COUNT]) -> Self {
         let mut res = SampledFunctionRegular1D { data, start, end, step: T::zero() };
         res.step = res.length() / from_usize(COUNT);
@@ -35,22 +38,22 @@ impl<T: Num + FromPrimitive + Copy, const COUNT: usize> SampledFunctionRegular1D
 
         res
     }
+
+    pub fn iter<'a>(&'a self) -> SampledFunctionRegular1DIterator<'a, T, COUNT> {
+        self.into_iter()
+    }
 }
 
-pub struct SampledFunctionRegular1DIterator<T: Num, const COUNT: usize> {
-    iteree: SampledFunctionRegular1D<T, COUNT>,
-    index: usize
-}
 
-pub struct SampledFunctionRegular1DIteratorRef<'a, T: Num, const COUNT: usize> {
+pub struct SampledFunctionRegular1DIterator<'a, T: Num, const COUNT: usize> {
     iteree: &'a SampledFunctionRegular1D<T, COUNT>,
     index: usize
 }
 
 
-
-impl<T: Num + FromPrimitive + Copy, const COUNT: usize>
-    Iterator for SampledFunctionRegular1DIterator<T, COUNT>
+impl<'a, T, const COUNT: usize> Iterator
+for SampledFunctionRegular1DIterator<'a, T, COUNT>
+where T: Num + FromPrimitive + Copy
 {
     type Item = (T, T);
 
@@ -63,16 +66,20 @@ impl<T: Num + FromPrimitive + Copy, const COUNT: usize>
     }
 }
 
-impl<T: Num + FromPrimitive + Copy, const COUNT: usize>
-    IntoIterator for SampledFunctionRegular1D<T, COUNT>
+
+impl<'a, T, const COUNT: usize> IntoIterator
+for &'a SampledFunctionRegular1D<T, COUNT>
+where T: Num + FromPrimitive + Copy
 {
     type Item = (T, T);
-    type IntoIter = SampledFunctionRegular1DIterator<T, COUNT>;
+    type IntoIter = SampledFunctionRegular1DIterator<'a, T, COUNT>;
 
-    fn into_iter(self) -> SampledFunctionRegular1DIterator<T, COUNT> {
+    fn into_iter(self) -> SampledFunctionRegular1DIterator<'a, T, COUNT> {
         SampledFunctionRegular1DIterator { iteree: self, index: 0 }
     }
 }
+
+
 
 
 fn from_usize<T: FromPrimitive>(n: usize) -> T {
