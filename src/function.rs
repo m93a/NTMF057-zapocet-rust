@@ -10,7 +10,11 @@ pub enum Interpolation {
 use Interpolation::Linear;
 
 
-pub struct SampledFunctionRegular1D<X, Y, const FN_LEN: usize, const ARR_LEN: usize> {
+
+
+pub struct SampledFunctionRegular1D<X, Y, const FN_LEN: usize, const ARR_LEN: usize>
+where X: Num + Copy + FromPrimitive + ToPrimitive, Y: Num + Copy + NumCast
+{
     pub data: [Y; ARR_LEN],
     pub start: X,
     pub end: X,
@@ -22,7 +26,7 @@ pub fn get_x<X: Num + FromPrimitive + Copy>(start: X, end: X, sample_count: usiz
 }
 
 impl<X, Y, const LEN: usize> SampledFunctionRegular1D<X, Y, LEN, LEN>
-where X: Num + FromPrimitive + Copy, Y: Copy
+where X: Num + Copy + FromPrimitive + ToPrimitive, Y: Num + Copy + NumCast
 {
     pub fn new(start: X, end: X, data: [Y; LEN]) -> Self {
         let mut res = SampledFunctionRegular1D { data, start, end, step: X::zero() };
@@ -44,17 +48,15 @@ where X: Num + FromPrimitive + Copy, Y: Copy
     }
 }
 
-impl<X: Copy, Y, const FN_LEN: usize, const ARR_LEN: usize> SampledFunctionRegular1D<X, Y, FN_LEN, ARR_LEN>
+
+impl<X, Y, const FN_LEN: usize, const ARR_LEN: usize> SampledFunctionRegular1D<X, Y, FN_LEN, ARR_LEN>
+where X: Num + Copy + FromPrimitive + ToPrimitive, Y: Num + Copy + NumCast
 {
     pub fn sample_count(&self) -> usize { FN_LEN }
     pub fn step(&self) -> X { self.step }
 
     pub fn length(&self) -> X where X: Num { self.end - self.start }
-}
 
-impl<X, Y, const FN_LEN: usize, const ARR_LEN: usize> SampledFunctionRegular1D<X, Y, FN_LEN, ARR_LEN>
-where X: Num + Copy + FromPrimitive
-{
     pub fn get_x(&self, i: usize) -> X
     where X: Num + FromPrimitive {
         self.start + self.length() * from_f32(i as f32 / FN_LEN as f32)
@@ -63,14 +65,9 @@ where X: Num + Copy + FromPrimitive
     pub fn last_x(&self) -> X { self.get_x(FN_LEN - 1) }
 
     pub fn iter<'a>(&'a self) -> SampledFunctionRegular1DIterator<'a, X, Y, FN_LEN, ARR_LEN>
-    where Y: Copy {
-        self.into_iter()
+    {
+        SampledFunctionRegular1DIterator { iteree: self, index: 0 }
     }
-}
-
-impl<X, Y, const FN_LEN: usize, const ARR_LEN: usize> SampledFunctionRegular1D<X, Y, FN_LEN, ARR_LEN>
-where X: Num + Copy + FromPrimitive + ToPrimitive
-{
 
     pub fn get_index_from_x(&self, x: X) -> Option<usize> {
         let len = self.end - self.start;
@@ -80,33 +77,41 @@ where X: Num + Copy + FromPrimitive + ToPrimitive
         if index < 0. { None } else { Some(index as usize) }
     }
 
-    pub fn interpolate_y(&self, x: X, mode: Interpolation) -> Option<Y>
-    where Y: Num + Copy + NumCast {
+    pub fn interpolate(&self, mode: Interpolation) -> impl Fn(X) -> Y + '_
+    {
+        match mode {
+            Linear => move |x: X| self.interpolate_y_linear(x)
+        }
+    }
+
+    fn interpolate_y_linear (&self, x: X) -> Y
+    {
         let conv = |x: X| { Y::from(x).expect("Cannot convert type X to type Y.")  };
 
-        match mode {
-            Linear => {
-                let i = match self.get_index_from_x(x) {
-                    Some(i) if i+1 < FN_LEN => i,
-                    _ => { return None; }
-                };
-
-                let x1 = self.get_x(i);
-                let x2 = self.get_x(i+1);
-                let y1 = self.data[i];
-                let y2 = self.data[i+1];
-
-                let slope = (y2 - y1)/conv(x2 - x1);
-                let offset = y1 - slope * conv(x1);
-
-                return Some(slope * conv(x) + offset);
-            }
+        let i = match self.get_index_from_x(x) {
+            None => 0,
+            Some(i) if i < FN_LEN-1 => i,
+            _ => FN_LEN-2,
         };
+
+        let x1 = self.get_x(i);
+        let x2 = self.get_x(i+1);
+        let y1 = self.data[i];
+        let y2 = self.data[i+1];
+
+        let slope = (y2 - y1)/conv(x2 - x1);
+        let offset = y1 - slope * conv(x1);
+
+        return slope * conv(x) + offset;
     }
 }
 
 
-pub struct SampledFunctionRegular1DIterator<'a, X, Y, const FN_LEN: usize, const ARR_LEN: usize> {
+
+
+pub struct SampledFunctionRegular1DIterator<'a, X, Y, const FN_LEN: usize, const ARR_LEN: usize>
+where X: Num + Copy + FromPrimitive + ToPrimitive, Y: Num + Copy + NumCast
+{
     iteree: &'a SampledFunctionRegular1D<X, Y, FN_LEN, ARR_LEN>,
     index: usize
 }
@@ -114,7 +119,7 @@ pub struct SampledFunctionRegular1DIterator<'a, X, Y, const FN_LEN: usize, const
 
 impl<'a, X, Y, const FN_LEN: usize, const ARR_LEN: usize> Iterator
 for SampledFunctionRegular1DIterator<'a, X, Y, FN_LEN, ARR_LEN>
-where X: Num + Copy + FromPrimitive, Y: Copy
+where X: Num + Copy + FromPrimitive + ToPrimitive, Y: Num + Copy + NumCast
 {
     type Item = (X, Y);
 
@@ -126,19 +131,6 @@ where X: Num + Copy + FromPrimitive, Y: Copy
 
         if i >= FN_LEN { None }
         else { Some((self.iteree.get_x(i), self.iteree.data[i])) }
-    }
-}
-
-
-impl<'a, X, Y, const FN_LEN: usize, const ARR_LEN: usize> IntoIterator
-for &'a SampledFunctionRegular1D<X, Y, FN_LEN, ARR_LEN>
-where X: Num + Copy + FromPrimitive, Y: Copy
-{
-    type Item = (X, Y);
-    type IntoIter = SampledFunctionRegular1DIterator<'a, X, Y, FN_LEN, ARR_LEN>;
-
-    fn into_iter(self) -> SampledFunctionRegular1DIterator<'a, X, Y, FN_LEN, ARR_LEN> {
-        SampledFunctionRegular1DIterator { iteree: self, index: 0 }
     }
 }
 

@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![allow(unused_macros)]
 
 use std::f32::consts::PI;
 const PI2: f32 = 2.*PI;
@@ -28,18 +29,23 @@ fn main() -> Result<(), Error>{
 
     println!("Start: {}, End: {}, Step: {}", ssin.start, ssin.end, ssin.step());
 
-
-    let mut file = File::create("./data1.txt")?;
-    for (x, y) in ssin.iter() {
-        writeln!(file, "{:.4} {:.4}", x, y)?;
+    {
+        let mut file = File::create("./data1.txt")?;
+        for (x, y) in ssin.iter() {
+            writeln!(file, "{:.4} {:.4}", x, y)?;
+        }
     }
 
-    
-    let mut file = File::create("./data2.txt")?;
-    for x in (0.0..PI2).iter(PTS*50) {
-        let y = or_continue!( ssin.interpolate_y(x, Linear) );
-        writeln!(file, "{:.4} {:.4}", x, y)?;
+    {
+        let mut file = File::create("./data2.txt")?;
+        let f = ssin.interpolate(Linear);
+
+        for x in (0.0..PI2).iter(PTS*50) {
+            writeln!(file, "{:.4} {:.4}", x, f(x))?;
+        }
     }
+
+    println!("Hello world! {}", ssin.data[0]);
 
     return ok();
 }
