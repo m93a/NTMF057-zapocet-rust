@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_macros)]
+#![feature(generators, generator_trait)]
 
 use std::f32::consts::PI;
 const PI2: f32 = 2.*PI;
@@ -13,9 +14,12 @@ use function::Interpolation::Linear;
 
 mod integral;
 
+mod constant_sequences;
+use constant_sequences::{factorial, t_exp};
+
 #[macro_use]
 mod utils;
-use utils::{NumRangeIterable, ok};
+use utils::{NumRangeIterable, GeneratorIterable, ok};
 
 
 fn sin([x]: [f32; 1]) -> [f32; 1] {[ x.sin() ]}
@@ -46,6 +50,19 @@ fn main() -> Result<(), Error>{
     }
 
     println!("Hello world! {}", ssin.data[0]);
+
+    println!(); println!();
+    print!("Factorials: ");
+    for x in factorial::<i32>().iter().take(11) {
+        print!("{}, ", x);
+    }
+
+    println!(); println!();
+    print!("exp x = ");
+    for (k, a) in t_exp::<f64>().iter().enumerate().take(11) {
+        print!("{:.4} x^{} + ", a, k);
+    }
+
 
     return ok();
 }
